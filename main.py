@@ -59,17 +59,14 @@ def get_ip():
 def ping():
     argument = '-n' if platform.system().lower() == 'windows' else '-c'
     host = socket.gethostbyname(socket.gethostname())
-    while True:
-        command = subprocess.Popen(
-            ['ping', argument, '1', host],
-            stdout=PIPE
-        )
-        time.sleep(1)
-        text = ''
-        for line in command.stdout.readlines():
-            text += line.decode('cp866')
-        logging.info(text)
-        print(text)
+    command = subprocess.Popen(
+        ['ping', argument, '99999', host],
+        stdout=PIPE,
+        universal_newlines=True
+    )
+    for line in iter(command.stdout.readline, ''):
+        print(line.strip()[::1])
+        logging.info(line.strip()[::1])
 
 if __name__ == "__main__":
     # проверка на корректность значения времени в файле config.txt
