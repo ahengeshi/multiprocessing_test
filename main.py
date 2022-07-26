@@ -1,7 +1,7 @@
 import os
 import subprocess
 from subprocess import PIPE
-from multiprocessing import Process
+from multiprocessing import Process, current_process
 import time
 import socket
 import platform
@@ -40,23 +40,26 @@ def file_time():
 
 # таймер для проверки времени работы программы
 def timer():
+    process_arg = current_process()
     t = time.monotonic()
     while time.monotonic() - t < int(file_time()):
         time.sleep(1)
         timeout = "{:>.0f}".format(time.monotonic() - t)
-        message = "Program time: " + timeout + " seconds."
+        message = process_arg.name + "Program time: " + timeout + " seconds."
         logging.info(message)
         print(message)
 
 # получение IP-адреса
 def get_ip():
+    process_arg = current_process()
     my_ip = socket.gethostbyname(socket.gethostname())
-    print(my_ip)
-    logging.info(my_ip)
+    print(process_arg.name + my_ip)
+    logging.info(process_arg.name + my_ip)
     return my_ip
 
 # команда ping
 def ping():
+    process_arg = current_process()
     argument = '-n' if platform.system().lower() == 'windows' else '-c'
     host = socket.gethostbyname(socket.gethostname())
     command = subprocess.Popen(
@@ -65,30 +68,42 @@ def ping():
         universal_newlines=True
     )
     for line in iter(command.stdout.readline, ''):
-        print(line.strip()[::1])
-        logging.info(line.strip()[::1])
+        print(process_arg.name + line.strip()[::1])
+        logging.info(process_arg.name + line.strip()[::1])
 
 if __name__ == "__main__":
     # проверка на корректность значения времени в файле config.txt
     if file_time() == False:
-        print("Incorrect value")
+        print("Incorrect value. Please check the config.txt file.")
     else:
         # создание процессов для параллельной работы
-        timer_process = Process(target=timer)
-        ping_process = Process(target=ping)
-        ip_process = Process(target=get_ip)
+        timer_process = Process(name="<Timer process> ", target=timer)
+        ping_process = Process(name="<Ping process> ", target=ping)
+        ip_process = Process(name="<GetIP process> ", target=get_ip)
         # запуск процессов
         timer_process.start()
         ping_process.start()
         ip_process.start()
         # ожидание окончания времени
-        timer_process.join()
+        while timer_process.is_alive():
+            if ping_process.is_alive():
+                ping_process.join(1)
+            elif ip_process.is_alive():
+                ip_process.join(1)
+            else:
+                timer_process.terminate()
         # проверка на активность процессов ping и получения ip; если процесс не завершен, то завершить его принудительно
         if ping_process.is_alive():
             logging.info("Ping process is forcibly terminated")
             print("Ping process is forcibly terminated")
             ping_process.terminate()
+        else:
+            logging.info("Ping process completed successfully")
+            print("Ping process completed successfully!")
         if ip_process.is_alive():
             logging.info("GetIP process is forcibly terminated")
             print("GetIP process is forcibly terminated")
             ip_process.terminate()
+        else:
+            logging.info("GetIP process completed successfully")
+            print("GetIP process completed successfully!")
