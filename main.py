@@ -14,7 +14,8 @@ logging.basicConfig(
     filemode='a',
     level=logging.INFO,
     format='%(asctime)s - %(message)s',
-    datefmt='%d-%b-%y %H:%M:%S'
+    datefmt='%d-%b-%y %H:%M:%S',
+    encoding='utf-8'
 )
 
 # конфигурационный файл для считывания времени времени выполнения программы
@@ -65,7 +66,8 @@ def ping():
     command = subprocess.Popen(
         ['ping', argument, '99999', host],
         stdout=PIPE,
-        universal_newlines=True
+        universal_newlines=True,
+        encoding='cp866'
     )
     for line in iter(command.stdout.readline, ''):
         print(process_arg.name + line.strip()[::1])
@@ -98,12 +100,12 @@ if __name__ == "__main__":
             print("Ping process is forcibly terminated")
             ping_process.terminate()
         else:
-            logging.info("Ping process completed successfully")
+            logging.info("Ping process completed successfully!")
             print("Ping process completed successfully!")
         if ip_process.is_alive():
             logging.info("GetIP process is forcibly terminated")
             print("GetIP process is forcibly terminated")
             ip_process.terminate()
         else:
-            logging.info("GetIP process completed successfully")
+            logging.info("GetIP process completed successfully!")
             print("GetIP process completed successfully!")
