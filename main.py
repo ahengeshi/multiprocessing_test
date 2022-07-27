@@ -46,21 +46,17 @@ def timer():
     while time.monotonic() - t < int(file_time()):
         time.sleep(1)
         timeout = "{:>.0f}".format(time.monotonic() - t)
-        message = process_arg.name + "Program time: " + timeout + " seconds."
+        message = process_arg.name + "Program time: " + timeout + " seconds out of " + file_time()
         logging.info(message)
         print(message)
 
 # получение IP-адреса
 def get_ip():
-    process_arg = current_process()
     my_ip = socket.gethostbyname(socket.gethostname())
-    print(process_arg.name + my_ip)
-    logging.info(process_arg.name + my_ip)
     return my_ip
 
 # команда ping
 def ping():
-    process_arg = current_process()
     argument = '-n' if platform.system().lower() == 'windows' else '-c'
     host = socket.gethostbyname(socket.gethostname())
     command = subprocess.Popen(
@@ -70,14 +66,14 @@ def ping():
         encoding='cp866'
     )
     for line in iter(command.stdout.readline, ''):
-        print(process_arg.name + line.strip()[::1])
-        logging.info(process_arg.name + line.strip()[::1])
+        text = line.strip()[::1]
 
 if __name__ == "__main__":
     # проверка на корректность значения времени в файле config.txt
     if file_time() == False:
         print("Incorrect value. Please check the config.txt file.")
     else:
+        process_arg = current_process()
         # создание процессов для параллельной работы
         timer_process = Process(name="<Timer process> ", target=timer)
         ping_process = Process(name="<Ping process> ", target=ping)
@@ -86,26 +82,48 @@ if __name__ == "__main__":
         timer_process.start()
         ping_process.start()
         ip_process.start()
+        print("Start:", ping_process.name, "and", ip_process.name)
+        logging.info("Start: " + ping_process.name + "and " + ip_process.name)
         # ожидание окончания времени
         while timer_process.is_alive():
-            if ping_process.is_alive():
+            if ping_process.is_alive() and ip_process.is_alive():
+                print(ping_process.name, "is running")
+                logging.info(ping_process.name + "is running")
+                print(ip_process.name, "is running")
+                logging.info(ip_process.name + "is running")
+                ping_process.join(1)
+                ip_process.join(1)
+            elif ping_process.is_alive():
+                print(ping_process.name, "is running")
+                logging.info(ping_process.name + "is running")
+                print(ip_process.name, "completed")
+                logging.info(ip_process.name + "completed")
                 ping_process.join(1)
             elif ip_process.is_alive():
+                print(ip_process.name, "is running")
+                logging.info(ip_process.name + "is running")
+                print(ping_process.name, "completed")
+                logging.info(ping_process.name + "completed")
                 ip_process.join(1)
             else:
+                timer_process.join(1)
+                print(ping_process.name, "completed")
+                logging.info(ping_process.name + "completed")
+                print(ip_process.name, "completed")
+                logging.info(ip_process.name + "completed")
                 timer_process.terminate()
-        # проверка на активность процессов ping и получения ip; если процесс не завершен, то завершить его принудительно
+                break
         if ping_process.is_alive():
-            logging.info("Ping process is forcibly terminated")
-            print("Ping process is forcibly terminated")
+            logging.info("Result: " + ping_process.name + "is forcibly terminated")
+            print("Result:", ping_process.name, "is forcibly terminated")
             ping_process.terminate()
         else:
-            logging.info("Ping process completed successfully!")
-            print("Ping process completed successfully!")
+            logging.info("Result: " + ping_process.name + "completed successfully!")
+            print("Result:", ping_process.name, "completed successfully!")
         if ip_process.is_alive():
-            logging.info("GetIP process is forcibly terminated")
-            print("GetIP process is forcibly terminated")
+            logging.info("Result: " + ip_process.name + "is forcibly terminated")
+            print("Result:", ip_process.name, "is forcibly terminated")
             ip_process.terminate()
         else:
-            logging.info("GetIP process completed successfully!")
-            print("GetIP process completed successfully!")
+            logging.info("Result: " + ip_process.name + "completed successfully!")
+            print("Result:", ip_process.name, "completed successfully!")
