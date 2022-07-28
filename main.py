@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import subprocess
 from subprocess import PIPE
@@ -18,6 +19,7 @@ logging.basicConfig(
     encoding='utf-8'
 )
 
+
 # конфигурационный файл для считывания времени времени выполнения программы
 def file_time():
     file_path = "config.txt"
@@ -27,7 +29,7 @@ def file_time():
         run_time = config_file.read()
         config_file.close()
         # проверка на корректность значения времени в файле config.txt
-        if run_time.isdigit() == False:
+        if not run_time.isdigit():
             return False
         else:
             return run_time
@@ -39,8 +41,9 @@ def file_time():
         config_file.close()
         return run_time
 
+
 # таймер для проверки времени работы программы
-def timer():
+def timer() -> None:
     process_arg = current_process()
     t = time.monotonic()
     while time.monotonic() - t < int(file_time()):
@@ -50,34 +53,60 @@ def timer():
         logging.info(message)
         print(message)
 
+
 # получение IP-адреса
-def get_ip():
-    my_ip = socket.gethostbyname(socket.gethostname())
-    return my_ip
+def get_ip(value, return_dict) -> dict:
+    if platform.system().lower() == 'windows':
+        command = subprocess.Popen(
+            ['ipconfig'],
+            stdout=PIPE,
+            universal_newlines=True,
+            encoding='cp866'
+        )
+    else:
+        command = subprocess.Popen(
+            ['ifconfig'],
+            stdout=PIPE,
+            universal_newlines=True,
+            encoding='cp866'
+            )
+    temp = []
+    for line in iter(command.stdout.readline, ''):
+        text_line = line.strip()
+        temp.append(text_line)
+        return_dict[value] = temp
+    return return_dict
+
 
 # команда ping
-def ping():
+def ping(value, return_dict) -> dict:
     argument = '-n' if platform.system().lower() == 'windows' else '-c'
     host = socket.gethostbyname(socket.gethostname())
     command = subprocess.Popen(
-        ['ping', argument, '99999', host],
+        ['ping', argument, '9999', host],
         stdout=PIPE,
         universal_newlines=True,
         encoding='cp866'
     )
+    temp = []
     for line in iter(command.stdout.readline, ''):
-        text = line.strip()[::1]
+        text_line = line.strip()
+        temp.append(text_line)
+        return_dict[value] = temp
+    return return_dict
+
 
 if __name__ == "__main__":
     # проверка на корректность значения времени в файле config.txt
-    if file_time() == False:
+    if not file_time():
         print("Incorrect value. Please check the config.txt file.")
     else:
-        process_arg = current_process()
+        manager = multiprocessing.Manager()
+        return_dict = manager.dict()
         # создание процессов для параллельной работы
         timer_process = Process(name="<Timer process> ", target=timer)
-        ping_process = Process(name="<Ping process> ", target=ping)
-        ip_process = Process(name="<GetIP process> ", target=get_ip)
+        ping_process = Process(name="<Ping process> ", target=ping, args=("<Ping process>", return_dict))
+        ip_process = Process(name="<GetIP process> ", target=get_ip, args=("<GetIP process>", return_dict))
         # запуск процессов
         timer_process.start()
         ping_process.start()
@@ -121,9 +150,18 @@ if __name__ == "__main__":
             logging.info("Result: " + ping_process.name + "completed successfully!")
             print("Result:", ping_process.name, "completed successfully!")
         if ip_process.is_alive():
-            logging.info("Result: " + ip_process.name + "is forcibly terminated")
-            print("Result:", ip_process.name, "is forcibly terminated")
+            logging.info("Result: " + ip_process.name + "is forcibly terminated" + '\n')
+            print("Result:", ip_process.name, "is forcibly terminated", '\n')
             ip_process.terminate()
         else:
-            logging.info("Result: " + ip_process.name + "completed successfully!")
-            print("Result:", ip_process.name, "completed successfully!")
+            logging.info("Result: " + ip_process.name + "completed successfully!" + '\n')
+            print("Result:", ip_process.name, "completed successfully!", '\n')
+        # вывод работы скриптов
+        print(ping_process.name, "Console output:")
+        logging.info(ping_process.name + " Console output:")
+        [print(line) for line in return_dict["<Ping process>"]]
+        [logging.info(line) for line in return_dict["<Ping process>"]]
+        print(ip_process.name, "Console output:")
+        logging.info(ip_process.name + " Console output:")
+        [print(line) for line in return_dict["<GetIP process>"]]
+        [logging.info(line) for line in return_dict["<GetIP process>"]]
